@@ -819,12 +819,12 @@ static void dram_dimm_mapping(dimm_info * info, ramctr_timing * ctrl)
 			// dimm 0 is bigger, set it to dimmA
 			dimmA = &info->dimm[channel][0];
 			dimmB = &info->dimm[channel][1];
-			reg |= (0 << 16);
+			reg |= (0 << 16); // DAS
 		} else {
 			// dimm 1 is bigger, set it to dimmA
 			dimmA = &info->dimm[channel][1];
 			dimmB = &info->dimm[channel][0];
-			reg |= (1 << 16);
+			reg |= (1 << 16); // DAS
 		}
 		// dimmA
 		if (dimmA && (dimmA->ranks > 0)) {
@@ -861,6 +861,7 @@ static void dram_dimm_set_mapping(ramctr_timing * ctrl)
 {
 	int channel;
 	FOR_ALL_CHANNELS {
+		/* MAD - Address decode register */
 		MCHBAR32(0x5004 + channel * 4) = ctrl->mad_dimm[channel];
 	}
 }
@@ -885,6 +886,7 @@ static void dram_zones(ramctr_timing * ctrl, int training)
 		reg = (reg & ~0xff000000) | val << 24;
 		reg = (reg & ~0xff0000) | (2 * val) << 16;
 		MCHBAR32(0x5014) = reg;
+		/* MAD—Address decoder Channel configuration register */
 		MCHBAR32(0x5000) = 0x24;
 	} else {
 		reg = MCHBAR32(0x5014);
@@ -892,6 +894,7 @@ static void dram_zones(ramctr_timing * ctrl, int training)
 		reg = (reg & ~0xff000000) | val << 24;
 		reg = (reg & ~0xff0000) | (2 * val) << 16;
 		MCHBAR32(0x5014) = reg;
+		/* MAD—Address decoder Channel configuration register */
 		MCHBAR32(0x5000) = 0x21;
 	}
 }
@@ -1085,7 +1088,7 @@ static void dram_ioregs(ramctr_timing * ctrl)
 
 	// Set comp1
 	FOR_ALL_POPULATED_CHANNELS {
-		reg = MCHBAR32(0x1810 + channel * 0x100);	//ch0
+		reg = MCHBAR32(0x1810 + channel * 0x100);
 		reg = (reg & ~0xe00) | (1 << 9);	//odt
 		reg = (reg & ~0xe00000) | (1 << 21);	//clk drive up
 		reg = (reg & ~0x38000000) | (1 << 27);	//ctl drive up
@@ -1843,6 +1846,9 @@ static void post_timA_change(ramctr_timing * ctrl, int channel, int slotrank,
 	printram("4028 += %d;\n", shift_402x);
 }
 
+/* compensate DQS to DQs skew in read mode
+ * the DRAM outputs a predefined pattern of “01010101”
+ */
 static void read_training(ramctr_timing * ctrl)
 {
 	int channel, slotrank, lane;
@@ -1929,12 +1935,11 @@ static void read_training(ramctr_timing * ctrl)
 
 		write32(DEFAULT_MCHBAR + 0x3400, 0);
 
+		/* toggle IO reset bit */
 		r32 = read32(DEFAULT_MCHBAR + 0x5030);
 		write32(DEFAULT_MCHBAR + 0x5030, r32 | 0x20);
 		udelay(1);
-
 		write32(DEFAULT_MCHBAR + 0x5030, r32 & ~0x20);
-
 		udelay(1);
 	}
 
@@ -2121,6 +2126,10 @@ static void precharge(ramctr_timing * ctrl)
 		FOR_ALL_POPULATED_RANKS {
 			wait_428c(channel);
 
+			/* DRAM command MRS
+			 * write MR3 MPR enable
+			 * in this mode only RD and RDA are allowed
+			 * all reads return a predefined pattern */
 			write32(DEFAULT_MCHBAR + 0x4220 + 0x400 * channel,
 				0x1f000);
 			write32(DEFAULT_MCHBAR + 0x4230 + 0x400 * channel,
@@ -2169,6 +2178,11 @@ static void precharge(ramctr_timing * ctrl)
 
 		FOR_ALL_POPULATED_RANKS {
 			wait_428c(channel);
+
+			/* DRAM command MRS
+			 * write MR3 MPR enable
+			 * in this mode only RD and RDA are allowed
+			 * all reads return a predefined pattern */
 
 			write32(DEFAULT_MCHBAR + 0x4220 + 0x400 * channel,
 				0x1f000);
@@ -2424,6 +2438,8 @@ static void write_training(ramctr_timing * ctrl)
 			read32(DEFAULT_MCHBAR + 0x4020 +
 			       0x400 * channel) | 0x200000);
 	}
+
+	/* refresh disable */
 	write32(DEFAULT_MCHBAR + 0x5030, read32(DEFAULT_MCHBAR + 0x5030) & ~8);
 	FOR_ALL_POPULATED_CHANNELS {
 		write_op(ctrl, channel);
@@ -2436,12 +2452,11 @@ static void write_training(ramctr_timing * ctrl)
 
 	write32(DEFAULT_MCHBAR + 0x3400, 0x108052);
 
+	/* toggle IO reset bit */
 	r32 = read32(DEFAULT_MCHBAR + 0x5030);
 	write32(DEFAULT_MCHBAR + 0x5030, r32 | 0x20);
 	udelay(1);
-
 	write32(DEFAULT_MCHBAR + 0x5030, r32 & ~0x20);
-
 	udelay(1);
 
 	FOR_ALL_CHANNELS FOR_ALL_POPULATED_RANKS
@@ -2456,6 +2471,7 @@ static void write_training(ramctr_timing * ctrl)
 	FOR_ALL_POPULATED_CHANNELS
 		wait_428c(channel);
 
+	/* refresh enable */
 	write32(DEFAULT_MCHBAR + 0x5030, read32(DEFAULT_MCHBAR + 0x5030) | 8);
 
 	FOR_ALL_POPULATED_CHANNELS {
@@ -2474,12 +2490,11 @@ static void write_training(ramctr_timing * ctrl)
 		wait_428c(channel);
 	}
 
+	/* toggle IO reset bit */
 	r32 = read32(DEFAULT_MCHBAR + 0x5030);
 	write32(DEFAULT_MCHBAR + 0x5030, r32 | 0x20);
 	udelay(1);
-
 	write32(DEFAULT_MCHBAR + 0x5030, r32 & ~0x20);
-
 	udelay(1);
 
 	printram("CPE\n");
@@ -2647,6 +2662,8 @@ static void reprogram_320c(ramctr_timing * ctrl)
 			read32(DEFAULT_MCHBAR + 0x4020 +
 			       0x400 * channel) | 0x200000);
 	}
+
+	/* refresh disable */
 	write32(DEFAULT_MCHBAR + 0x5030, read32(DEFAULT_MCHBAR + 0x5030) & ~8);
 	FOR_ALL_POPULATED_CHANNELS {
 		wait_428c(channel);
@@ -2671,12 +2688,11 @@ static void reprogram_320c(ramctr_timing * ctrl)
 	/* mrs commands. */
 	dram_mrscommands(ctrl);
 
+	/* toggle IO reset bit */
 	r32 = read32(DEFAULT_MCHBAR + 0x5030);
 	write32(DEFAULT_MCHBAR + 0x5030, r32 | 0x20);
 	udelay(1);
-
 	write32(DEFAULT_MCHBAR + 0x5030, r32 & ~0x20);
-
 	udelay(1);
 }
 
@@ -2800,6 +2816,10 @@ static void discover_edges_real(ramctr_timing * ctrl, int channel, int slotrank,
 
 		wait_428c(channel);
 
+		/* DRAM command MRS
+		 * write MR3 MPR enable
+		 * in this mode only RD and RDA are allowed
+		 * all reads return a predefined pattern */
 		write32(DEFAULT_MCHBAR + 0x4220 + 0x400 * channel, 0x1f000);
 		write32(DEFAULT_MCHBAR + 0x4230 + 0x400 * channel,
 			(0xc01 | (ctrl->tMOD << 16)));
@@ -2820,6 +2840,8 @@ static void discover_edges_real(ramctr_timing * ctrl, int channel, int slotrank,
 			(slotrank << 24) | 0x60000);
 		write32(DEFAULT_MCHBAR + 0x4218 + 0x400 * channel, 0);
 
+		/* DRAM command MRS
+		 * MR3 disable MPR */
 		write32(DEFAULT_MCHBAR + 0x422c + 0x400 * channel, 0x1f000);
 		write32(DEFAULT_MCHBAR + 0x423c + 0x400 * channel,
 			(0xc01 | (ctrl->tMOD << 16)));
@@ -2857,12 +2879,11 @@ static void discover_edges(ramctr_timing * ctrl)
 
 	write32(DEFAULT_MCHBAR + 0x3400, 0);
 
+	/* toggle IO reset bit */
 	r32 = read32(DEFAULT_MCHBAR + 0x5030);
 	write32(DEFAULT_MCHBAR + 0x5030, r32 | 0x20);
 	udelay(1);
-
 	write32(DEFAULT_MCHBAR + 0x5030, r32 & ~0x20);
-
 	udelay(1);
 
 	FOR_ALL_POPULATED_CHANNELS FOR_ALL_LANES {
@@ -2890,6 +2911,11 @@ static void discover_edges(ramctr_timing * ctrl)
 		FOR_ALL_POPULATED_RANKS {
 			wait_428c(channel);
 
+			/* DRAM command MRS
+			 * MR3 enable MPR
+			 * write MR3 MPR enable
+			 * in this mode only RD and RDA are allowed
+			 * all reads return a predefined pattern */
 			write32(DEFAULT_MCHBAR + 0x4220 + 0x400 * channel,
 				0x1f000);
 			write32(DEFAULT_MCHBAR + 0x4230 + 0x400 * channel,
@@ -2926,7 +2952,7 @@ static void discover_edges(ramctr_timing * ctrl)
 
 			wait_428c(channel);
 		}
-
+		/* XXX: check any return value ? what is this good for ? */
 		FOR_ALL_POPULATED_RANKS FOR_ALL_LANES {
 			ctrl->timings[channel][slotrank].lanes[lane].falling =
 			    48;
@@ -2939,6 +2965,11 @@ static void discover_edges(ramctr_timing * ctrl)
 		FOR_ALL_POPULATED_RANKS {
 			wait_428c(channel);
 
+			/* DRAM command MRS
+			 * MR3 enable MPR
+			 * write MR3 MPR enable
+			 * in this mode only RD and RDA are allowed
+			 * all reads return a predefined pattern */
 			write32(DEFAULT_MCHBAR + 0x4220 + 0x400 * channel,
 				0x1f000);
 			write32(DEFAULT_MCHBAR + 0x4230 + 0x400 * channel,
@@ -2975,6 +3006,7 @@ static void discover_edges(ramctr_timing * ctrl)
 				0xc0001);
 			wait_428c(channel);
 		}
+		/* XXX: check any value ? what is this good for ? */
 
 		FOR_ALL_LANES {
 			write32(DEFAULT_MCHBAR + 0x4080 + 0x400 * channel +
