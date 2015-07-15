@@ -45,6 +45,37 @@
 /* FIXME: no ECC support.  */
 /* FIXME: no support for 3-channel chipsets.  */
 
+/*
+ * Register description:
+ * Intel provides a command queue of depth four.
+ * Every command is configured by using multiple registers.
+ *
+ * Known registers:
+ * X = {0, 1}, Y = {0, 1, 2, 3}
+ *
+ * DEFAULT_MCHBAR + 0x4220 + 0x400 * X + 4 * Y: command_io_channel_X_cmd_Y
+ *  controls the command signals of DRAM command number Y on channel X
+ *  Bit 0: !RAS
+ *  Bit 1: !CAS
+ *  Bit 2: !WE
+ *
+ * DEFAULT_MCHBAR + 0x4200 + 0x400 * X + 4 * Y: addr_bank_slot_io_channel_X_cmd_Y
+ *  controls the address, bank address and slotrank signals of
+ *  DRAM command number Y on channel X
+ *  Bit 0-15 : Address
+ *  Bit 20-22: Bank Address
+ *  Bit 24-25: slotrank
+ *
+ * DEFAULT_MCHBAR + 0x4230 + 0x400 * X + 4 * Y: idle_channel_X_cmd_Y
+ *  controls the idle time after issuing this DRAM command number Y on channel X
+ *  Bit 16-32: number of clock-cylces to idle
+ *
+ * DEFAULT_MCHBAR + 0x4284 + 0x400 * channel: start_channel_X
+ *  starts to execute all queued commands on channel X
+ *  Bit 0    : start DRAM command execution
+ *  Bit 16-20: (number of queued commands - 1) * 4
+ */
+
 #define BASEFREQ 133
 #define tDLLK 512
 
@@ -1846,8 +1877,21 @@ static void post_timA_change(ramctr_timing * ctrl, int channel, int slotrank,
 	printram("4028 += %d;\n", shift_402x);
 }
 
-/* compensate DQS to DQs skew in read mode
- * the DRAM outputs a predefined pattern of “01010101”
+/*
+ * Compensate the skew between DQS and DQs.
+ * To easy PCB design a small skew between Data Strobe signals and
+ * Data Signals is allow.
+ * The controller has to measure and compensate this skew for every byte-lane.
+ * By delaying either all DQs signals or DQS signal, a full phase
+ * shift can be introduced.
+ * It is assumed that the DQs signals have the same routing delay.
+ *
+ * To measure the actual skew the DRAM is placed in "read leveling" mode.
+ * In this mode the DRAM-chip outputs an alternating periodic pattern.
+ * The memory controller iterates over all possible values and issues read
+ * commands. The data read is expected to alternate 0xFF 0x00 0xFF .... .
+ * Once the controller has detected this pattern a bit in the result register is
+ * set for the current phase shift.
  */
 static void read_training(ramctr_timing * ctrl)
 {
@@ -2422,6 +2466,21 @@ static void write_op(ramctr_timing * ctrl, int channel)
 	wait_428c(channel);
 }
 
+/*
+ * Compensate the skew between CMD/ADDR/CLK and DQ/DQS lanes.
+ * DDR3 adopted the Fly-by topology, data and strobes reach different
+ * memory modules at different times with respect to command, address and
+ * clock signals.
+ * By delaying either all DQ/DQs or all CMD/ADDR/CLK signals, a full phase
+ * shift can be introduced.
+ * It is assumed that the CLK/ADDR/CMD signals have the same routing delay.
+ *
+ * To measure the actual phase shift the DRAM is placed in "write leveling" mode.
+ * In this mode the DRAM-chip samples the CLK on every DQS edge and feeds back the
+ * sampled value on the data lanes (DQs).
+ * The memory controller iterates over all possible values and finally chooses
+ * the best timing value.
+ */
 static void write_training(ramctr_timing * ctrl)
 {
 	int channel, slotrank, lane;
