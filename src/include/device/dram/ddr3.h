@@ -124,9 +124,35 @@ typedef union dimm_flags_st {
 		unsigned ext_temp_refresh:1;
 		/* Thermal sensor incorporated */
 		unsigned therm_sensor:1;
+		/* XMP Profile1 available */
+		unsigned xmp_profile_1:1;
+		/* XMP Profile2 available */
+		unsigned xmp_profile_2:1;
 	};
 	unsigned raw;
 } dimm_flags_t;
+
+/**
+ * \brief DIMM profile settings
+ *
+ * The characteristics of each DIMM profile, as presented by the SPD and XMP
+ */
+typedef struct dimm_attr_st {
+	u8 dimms_per_channel;
+	/* Latencies are in units of 1/256 ns */
+	u32 tCK;
+	u32 tAA;
+	u32 tWR;
+	u32 tRCD;
+	u32 tRRD;
+	u32 tRP;
+	u32 tRAS;
+	u32 tRC;
+	u32 tRFC;
+	u32 tWTR;
+	u32 tRTP;
+	u32 tFAW;
+} profile_attr;
 
 /**
  * \brief DIMM characteristics
@@ -149,20 +175,10 @@ typedef struct dimm_attr_st {
 	u8 col_bits;
 	/* Size of module in MiB */
 	u32 size_mb;
-	/* Latencies are in units of 1/256 ns */
-	u32 tCK;
-	u32 tAA;
-	u32 tWR;
-	u32 tRCD;
-	u32 tRRD;
-	u32 tRP;
-	u32 tRAS;
-	u32 tRC;
-	u32 tRFC;
-	u32 tWTR;
-	u32 tRTP;
-	u32 tFAW;
+	/* Latencies for SPD, XMP_1 and XMP_2 */
+	profile_attr profiles[3];
 
+	profile_attr *selected_profile;
 	u8 reference_card;
 } dimm_attr;
 
@@ -172,6 +188,13 @@ enum spd_status {
 	SPD_STATUS_INVALID,
 	SPD_STATUS_CRC_ERROR,
 	SPD_STATUS_INVALID_FIELD,
+};
+
+/** Available latency profiles */
+enum spd_profiles {
+	SPD_LATENCY_SPD = 0,
+	SPD_LATENCY_XMP_1,
+	SPD_LATENCY_XMP_2
 };
 
 typedef u8 spd_raw_data[256];
@@ -241,7 +264,7 @@ enum ddr3_mr0_burst_length {
 	DDR3_MR0_BURST_LENGTH_CHOP = 1,
 	DDR3_MR0_BURST_LENGTH_4 = 2,
 };
-mrs_cmd_t ddr3_get_mr0(enum ddr3_mr0_precharge precharge_pd,
+mrs_cmd_t ddr3_get_mr0(enum ddr3_mr0_precharge precharge_pd,1
 		       u8 write_recovery,
 		       enum ddr3_mr0_dll_reset dll_reset,
 		       enum ddr3_mr0_mode mode,
@@ -312,4 +335,5 @@ mrs_cmd_t ddr3_get_mr2(enum ddr3_mr2_rttwr rtt_wr,
 mrs_cmd_t ddr3_get_mr3(char dataflow_from_mpr);
 mrs_cmd_t ddr3_mrs_mirror_pins(mrs_cmd_t cmd);
 
+char *ddr3_get_profilename(enum spd_lantency latency);
 #endif				/* DEVICE_DRAM_DDR3_H */

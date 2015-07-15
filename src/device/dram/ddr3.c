@@ -258,31 +258,31 @@ int spd_decode_ddr3(dimm_attr * dimm, spd_raw_data spd)
 	mtb = (((u32) spd[10]) << 8) / spd[11];
 
 	/* SDRAM Minimum Cycle Time (tCKmin) */
-	dimm->tCK = spd[12] * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tCK = spd[12] * mtb;
 	/* CAS Latencies Supported */
 	dimm->cas_supported = (spd[15] << 8) + spd[14];
 	/* Minimum CAS Latency Time (tAAmin) */
-	dimm->tAA = spd[16] * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tAA = spd[16] * mtb;
 	/* Minimum Write Recovery Time (tWRmin) */
-	dimm->tWR = spd[17] * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tWR = spd[17] * mtb;
 	/* Minimum RAS# to CAS# Delay Time (tRCDmin) */
-	dimm->tRCD = spd[18] * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tRCD = spd[18] * mtb;
 	/* Minimum Row Active to Row Active Delay Time (tRRDmin) */
-	dimm->tRRD = spd[19] * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tRRD = spd[19] * mtb;
 	/* Minimum Row Precharge Delay Time (tRPmin) */
-	dimm->tRP = spd[20] * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tRP = spd[20] * mtb;
 	/* Minimum Active to Precharge Delay Time (tRASmin) */
-	dimm->tRAS = (((spd[21] & 0x0f) << 8) + spd[22]) * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tRAS = (((spd[21] & 0x0f) << 8) + spd[22]) * mtb;
 	/* Minimum Active to Active/Refresh Delay Time (tRCmin) */
-	dimm->tRC = (((spd[21] & 0xf0) << 4) + spd[23]) * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tRC = (((spd[21] & 0xf0) << 4) + spd[23]) * mtb;
 	/* Minimum Refresh Recovery Delay Time (tRFCmin) */
-	dimm->tRFC = ((spd[25] << 8) + spd[24]) * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tRFC = ((spd[25] << 8) + spd[24]) * mtb;
 	/* Minimum Internal Write to Read Command Delay Time (tWTRmin) */
-	dimm->tWTR = spd[26] * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tWTR = spd[26] * mtb;
 	/* Minimum Internal Read to Precharge Command Delay Time (tRTPmin) */
-	dimm->tRTP = spd[27] * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tRTP = spd[27] * mtb;
 	/* Minimum Four Activate Window Delay Time (tFAWmin) */
-	dimm->tFAW = (((spd[28] & 0x0f) << 8) + spd[29]) * mtb;
+	dimm->profiles[SPD_LATENCY_SPD].tFAW = (((spd[28] & 0x0f) << 8) + spd[29]) * mtb;
 
 	/* SPD Revision 1.1+ */
 	if (((spd[1] & 0xf0) == 0x10) && ((spd[1] & 0x0f) > 0)
@@ -293,15 +293,15 @@ int spd_decode_ddr3(dimm_attr * dimm, spd_raw_data spd)
 		fine_tb = ((spd[9] & 0xf0) << 4) / (spd[9] & 0x0f);
 
 		/* SDRAM Minimum Cycle Time (tCKmin) correction */
-		dimm->tCK += (u8_to_signed(spd[34]) * fine_tb) / 1000;
+		dimm->profiles[SPD_LATENCY_SPD].tCK += (u8_to_signed(spd[34]) * fine_tb) / 1000;
 		/* Minimum CAS Latency Time (tAAmin) correction */
-		dimm->tAA += (u8_to_signed(spd[35]) * fine_tb) / 1000;
+		dimm->profiles[SPD_LATENCY_SPD].tAA += (u8_to_signed(spd[35]) * fine_tb) / 1000;
 		/* Minimum RAS# to CAS# Delay Time (tRCDmin) correction */
-		dimm->tRCD += (u8_to_signed(spd[36]) * fine_tb) / 1000;
+		dimm->profiles[SPD_LATENCY_SPD].tRCD += (u8_to_signed(spd[36]) * fine_tb) / 1000;
 		/* Minimum Row Precharge Delay Time (tRPmin) correction */
-		dimm->tRP += (u8_to_signed(spd[37]) * fine_tb) / 1000;
+		dimm->profiles[SPD_LATENCY_SPD].tRP += (u8_to_signed(spd[37]) * fine_tb) / 1000;
 		/* Minimum Active to Active/Refresh Delay Time (tRCmin) correction */
-		dimm->tRC += (u8_to_signed(spd[38]) * fine_tb) / 1000;
+		dimm->profiles[SPD_LATENCY_SPD].tRC += (u8_to_signed(spd[38]) * fine_tb) / 1000;
 	}
 
 	/* SDRAM Optional Features */
@@ -365,6 +365,73 @@ int spd_decode_ddr3(dimm_attr * dimm, spd_raw_data spd)
 	dimm->reference_card = spd[62] & 0x1f;
 	printram("  DIMM Reference card %c\n", 'A' + dimm->reference_card);
 
+	/* XMP profiles */
+	if (spd[176] == 0x0c && spd[177] = 0x4a) {
+		if (spd[178] & 1) {
+			dimm->flags.xmp_profile_1 = 1;
+
+			mtb = (((u32) spd[180]) << 8) / spd[181];
+
+			/* SDRAM Minimum Cycle Time (tCKmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tCK = spd[186] * mtb;
+			/* CAS Latencies Supported */
+			dimm->cas_supported = (spd[189] << 8) + spd[188];
+			/* Minimum CAS Latency Time (tAAmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tAA = spd[187] * mtb;
+			/* Minimum Write Recovery Time (tWRmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tWR = spd[193] * mtb;
+			/* Minimum RAS# to CAS# Delay Time (tRCDmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tRCD = spd[192] * mtb;
+			/* Minimum Row Active to Row Active Delay Time (tRRDmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tRRD = spd[202] * mtb;
+			/* Minimum Row Precharge Delay Time (tRPmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tRP = spd[191] * mtb;
+			/* Minimum Active to Precharge Delay Time (tRASmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tRAS = (((spd[194] & 0x0f) << 8) + spd[195]) * mtb;
+			/* Minimum Active to Active/Refresh Delay Time (tRCmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tRC = (((spd[194] & 0xf0) << 4) + spd[196]) * mtb;
+			/* Minimum Refresh Recovery Delay Time (tRFCmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tRFC = ((spd[200] << 8) + spd[199]) * mtb;
+			/* Minimum Internal Write to Read Command Delay Time (tWTRmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tWTR = spd[205] * mtb;
+			/* Minimum Internal Read to Precharge Command Delay Time (tRTPmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tRTP = spd[201] * mtb;
+			/* Minimum Four Activate Window Delay Time (tFAWmin) */
+			dimm->profiles[SPD_LATENCY_XMP_1].tFAW = (((spd[203] & 0x0f) << 8) + spd[202]) * mtb;
+		}
+		if (spd[178] & 2) {
+			dimm->flags.xmp_profile_2 = 1;
+
+			mtb = (((u32) spd[182]) << 8) / spd[183];
+
+			/* SDRAM Minimum Cycle Time (tCKmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tCK = spd[221] * mtb;
+			/* CAS Latencies Supported */
+			dimm->cas_supported = (spd[224] << 8) + spd[223];
+			/* Minimum CAS Latency Time (tAAmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tAA = spd[222] * mtb;
+			/* Minimum Write Recovery Time (tWRmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tWR = spd[228] * mtb;
+			/* Minimum RAS# to CAS# Delay Time (tRCDmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tRCD = spd[227] * mtb;
+			/* Minimum Row Active to Row Active Delay Time (tRRDmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tRRD = spd[237] * mtb;
+			/* Minimum Row Precharge Delay Time (tRPmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tRP = spd[226] * mtb;
+			/* Minimum Active to Precharge Delay Time (tRASmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tRAS = (((spd[229] & 0x0f) << 8) + spd[230]) * mtb;
+			/* Minimum Active to Active/Refresh Delay Time (tRCmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tRC = (((spd[229] & 0xf0) << 4) + spd[231]) * mtb;
+			/* Minimum Refresh Recovery Delay Time (tRFCmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tRFC = ((spd[235] << 8) + spd[234]) * mtb;
+			/* Minimum Internal Write to Read Command Delay Time (tWTRmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tWTR = spd[240] * mtb;
+			/* Minimum Internal Read to Precharge Command Delay Time (tRTPmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tRTP = spd[236] * mtb;
+			/* Minimum Four Activate Window Delay Time (tFAWmin) */
+			dimm->profiles[SPD_LATENCY_XMP_2].tFAW = (((spd[238] & 0x0f) << 8) + spd[239]) * mtb;
+		}
+	}
 	return ret;
 }
 
@@ -648,4 +715,20 @@ mrs_cmd_t ddr3_mrs_mirror_pins(mrs_cmd_t cmd)
 	cmd &= ~(lowbits | (lowbits << 1));
 	cmd |= (downshift >> 1) | (upshift << 1);
 	return cmd;
+}
+
+/**
+ * \brief Return latencies profile name
+ */
+char *ddr3_get_profilename(enum spd_lantency latency) {
+	switch(latency) {
+	case SPD_LATENCY_SPD:
+		return "SPD";
+	case SPD_LATENCY_XMP_1:
+		return "XMP Profile 1";
+	case SPD_LATENCY_XMP_2:
+		return "XMP Profile 2";
+	default:
+		return "unknown";
+	}
 }

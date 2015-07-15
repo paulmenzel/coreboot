@@ -345,17 +345,17 @@ static void dram_find_common_params(const dimm_info * dimms,
 		ctrl->cas_supported &= dimm->cas_supported;
 
 		/* Find the smallest common latencies supported by all DIMMs */
-		ctrl->tCK = MAX(ctrl->tCK, dimm->tCK);
-		ctrl->tAA = MAX(ctrl->tAA, dimm->tAA);
-		ctrl->tWR = MAX(ctrl->tWR, dimm->tWR);
-		ctrl->tRCD = MAX(ctrl->tRCD, dimm->tRCD);
-		ctrl->tRRD = MAX(ctrl->tRRD, dimm->tRRD);
-		ctrl->tRP = MAX(ctrl->tRP, dimm->tRP);
-		ctrl->tRAS = MAX(ctrl->tRAS, dimm->tRAS);
-		ctrl->tRFC = MAX(ctrl->tRFC, dimm->tRFC);
-		ctrl->tWTR = MAX(ctrl->tWTR, dimm->tWTR);
-		ctrl->tRTP = MAX(ctrl->tRTP, dimm->tRTP);
-		ctrl->tFAW = MAX(ctrl->tFAW, dimm->tFAW);
+		ctrl->tCK = MAX(ctrl->tCK, dimm->profiles[0].tCK);
+		ctrl->tAA = MAX(ctrl->tAA, dimm->profiles[0].tAA);
+		ctrl->tWR = MAX(ctrl->tWR, dimm->profiles[0].tWR);
+		ctrl->tRCD = MAX(ctrl->tRCD, dimm->profiles[0].tRCD);
+		ctrl->tRRD = MAX(ctrl->tRRD, dimm->profiles[0].tRRD);
+		ctrl->tRP = MAX(ctrl->tRP, dimm->profiles[0].tRP);
+		ctrl->tRAS = MAX(ctrl->tRAS, dimm->profiles[0].tRAS);
+		ctrl->tRFC = MAX(ctrl->tRFC, dimm->profiles[0].tRFC);
+		ctrl->tWTR = MAX(ctrl->tWTR, dimm->profiles[0].tWTR);
+		ctrl->tRTP = MAX(ctrl->tRTP, dimm->profiles[0].tRTP);
+		ctrl->tFAW = MAX(ctrl->tFAW, dimm->profiles[0].tFAW);
 	}
 
 	if (!ctrl->cas_supported)
