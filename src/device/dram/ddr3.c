@@ -32,6 +32,18 @@
  *----------------------------------------------------------------------------*/
 
 /**
+ * \brief Converts u8 to signed integer
+ */
+static inline int u8_to_signed(u8 raw)
+{
+	int cooked;
+	cooked = raw & 0x7f;
+	if (raw & 0x80)
+		cooked -= 128;
+	return cooked;
+}
+
+/**
  * \brief Checks if the DIMM is Registered based on byte[3] of the SPD
  *
  * Tells if the DIMM type is registered or not.
@@ -110,9 +122,10 @@ int spd_decode_ddr3(dimm_attr * dimm, spd_raw_data spd)
 {
 	int ret;
 	u16 crc, spd_crc;
-	u8 ftb_divisor, ftb_dividend, capacity_shift, bus_width;
+	u8 capacity_shift, bus_width;
 	u8 reg8;
 	u32 mtb;		/* medium time base */
+	u32 fine_tb;		/* fine time base */
 	unsigned int val, param;
 
 	ret = SPD_STATUS_OK;
@@ -239,12 +252,6 @@ int spd_decode_ddr3(dimm_attr * dimm, spd_raw_data spd)
 	dimm->size_mb = ((1 << (capacity_shift + (25 - 20))) * bus_width
 			 * dimm->ranks) / dimm->width;
 
-	/* Fine Timebase (FTB) Dividend/Divisor */
-	/* Dividend */
-	ftb_dividend = (spd[9] >> 4) & 0x0f;
-	/* Divisor */
-	ftb_divisor = spd[9] & 0x0f;
-
 	/* Medium Timebase =
 	 *   Medium Timebase (MTB) Dividend /
 	 *   Medium Timebase (MTB) Divisor */
@@ -276,6 +283,26 @@ int spd_decode_ddr3(dimm_attr * dimm, spd_raw_data spd)
 	dimm->tRTP = spd[27] * mtb;
 	/* Minimum Four Activate Window Delay Time (tFAWmin) */
 	dimm->tFAW = (((spd[28] & 0x0f) << 8) + spd[29]) * mtb;
+
+	/* SPD Revision 1.1+ */
+	if (((spd[1] & 0xf0) == 0x10) && ((spd[1] & 0x0f) > 0)
+	    && (spd[9] & 0xf0) && (spd[9] & 0x0f)) {
+		/* Fine Timebase (FTB) is in units of pico-seconds,
+		 * while MTB is in units of nano-seconds
+		 * Dividend/Divisor */
+		fine_tb = ((spd[9] & 0xf0) << 4) / (spd[9] & 0x0f);
+
+		/* SDRAM Minimum Cycle Time (tCKmin) correction */
+		dimm->tCK += (u8_to_signed(spd[34]) * fine_tb) / 1000;
+		/* Minimum CAS Latency Time (tAAmin) correction */
+		dimm->tAA += (u8_to_signed(spd[35]) * fine_tb) / 1000;
+		/* Minimum RAS# to CAS# Delay Time (tRCDmin) correction */
+		dimm->tRCD += (u8_to_signed(spd[36]) * fine_tb) / 1000;
+		/* Minimum Row Precharge Delay Time (tRPmin) correction */
+		dimm->tRP += (u8_to_signed(spd[37]) * fine_tb) / 1000;
+		/* Minimum Active to Active/Refresh Delay Time (tRCmin) correction */
+		dimm->tRC += (u8_to_signed(spd[38]) * fine_tb) / 1000;
+	}
 
 	/* SDRAM Optional Features */
 	reg8 = spd[30];
