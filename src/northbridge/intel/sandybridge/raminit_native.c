@@ -333,6 +333,7 @@ static void dram_find_common_params(const dimm_info * dimms,
 {
 	size_t valid_dimms;
 	int channel, slot;
+	int profile = 2;
 	ctrl->cas_supported = 0xff;
 	valid_dimms = 0;
 	FOR_ALL_CHANNELS for (slot = 0; slot < 2; slot++) {
@@ -341,21 +342,29 @@ static void dram_find_common_params(const dimm_info * dimms,
 			continue;
 		valid_dimms++;
 
+		if(!dimm->flags.xmp_profile_2)
+			profile = 1;
+
+		if(!dimm->flags.xmp_profile_1)
+			profile = 0;
+
+		printk(BIOS_INFO, "  Using profile '%s':\n", ddr3_get_profilename(profile));
+
 		/* Find all possible CAS combinations */
 		ctrl->cas_supported &= dimm->cas_supported;
 
 		/* Find the smallest common latencies supported by all DIMMs */
-		ctrl->tCK = MAX(ctrl->tCK, dimm->profiles[0].tCK);
-		ctrl->tAA = MAX(ctrl->tAA, dimm->profiles[0].tAA);
-		ctrl->tWR = MAX(ctrl->tWR, dimm->profiles[0].tWR);
-		ctrl->tRCD = MAX(ctrl->tRCD, dimm->profiles[0].tRCD);
-		ctrl->tRRD = MAX(ctrl->tRRD, dimm->profiles[0].tRRD);
-		ctrl->tRP = MAX(ctrl->tRP, dimm->profiles[0].tRP);
-		ctrl->tRAS = MAX(ctrl->tRAS, dimm->profiles[0].tRAS);
-		ctrl->tRFC = MAX(ctrl->tRFC, dimm->profiles[0].tRFC);
-		ctrl->tWTR = MAX(ctrl->tWTR, dimm->profiles[0].tWTR);
-		ctrl->tRTP = MAX(ctrl->tRTP, dimm->profiles[0].tRTP);
-		ctrl->tFAW = MAX(ctrl->tFAW, dimm->profiles[0].tFAW);
+		ctrl->tCK = MAX(ctrl->tCK, dimm->profiles[profile].tCK);
+		ctrl->tAA = MAX(ctrl->tAA, dimm->profiles[profile].tAA);
+		ctrl->tWR = MAX(ctrl->tWR, dimm->profiles[profile].tWR);
+		ctrl->tRCD = MAX(ctrl->tRCD, dimm->profiles[profile].tRCD);
+		ctrl->tRRD = MAX(ctrl->tRRD, dimm->profiles[profile].tRRD);
+		ctrl->tRP = MAX(ctrl->tRP, dimm->profiles[profile].tRP);
+		ctrl->tRAS = MAX(ctrl->tRAS, dimm->profiles[profile].tRAS);
+		ctrl->tRFC = MAX(ctrl->tRFC, dimm->profiles[profile].tRFC);
+		ctrl->tWTR = MAX(ctrl->tWTR, dimm->profiles[profile].tWTR);
+		ctrl->tRTP = MAX(ctrl->tRTP, dimm->profiles[profile].tRTP);
+		ctrl->tFAW = MAX(ctrl->tFAW, dimm->profiles[profile].tFAW);
 	}
 
 	if (!ctrl->cas_supported)
@@ -1120,9 +1129,9 @@ static void dram_ioregs(ramctr_timing * ctrl)
 	// Set comp1
 	FOR_ALL_POPULATED_CHANNELS {
 		reg = MCHBAR32(0x1810 + channel * 0x100);
-		reg = (reg & ~0xe00) | (1 << 9);	//odt
-		reg = (reg & ~0xe00000) | (1 << 21);	//clk drive up
-		reg = (reg & ~0x38000000) | (1 << 27);	//ctl drive up
+		reg = (reg & ~0xe00) | (4 << 9);	//odt
+		reg = (reg & ~0xe00000) | (4 << 21);	//clk drive up
+		reg = (reg & ~0x38000000) | (4 << 27);	//ctl drive up
 		MCHBAR32(0x1810 + channel * 0x100) = reg;
 	}
 	printk(BIOS_DEBUG, "COMP1 done\n");
@@ -1250,7 +1259,7 @@ static void write_mrreg(ramctr_timing * ctrl, int channel, int slotrank,
 {
 	wait_428c(channel);
 
-	printram("MRd: %x <= %x\n", reg, val);
+	//printram("MRd: %x <= %x\n", reg, val);
 
 	if (ctrl->rank_mirror[channel][slotrank]) {
 		/* DDR3 Rank1 Address mirror
@@ -1261,7 +1270,7 @@ static void write_mrreg(ramctr_timing * ctrl, int channel, int slotrank,
 		    | ((val & 0xa8) << 1);
 	}
 
-	printram("MRd: %x <= %x\n", reg, val);
+	//printram("MRd: %x <= %x\n", reg, val);
 
 	write32(DEFAULT_MCHBAR + 0x4220 + 0x400 * channel, 0x0f000);
 	write32(DEFAULT_MCHBAR + 0x4230 + 0x400 * channel, 0x41001);
