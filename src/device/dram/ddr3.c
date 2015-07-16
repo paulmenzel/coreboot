@@ -366,8 +366,8 @@ int spd_decode_ddr3(dimm_attr * dimm, spd_raw_data spd)
 	printram("  DIMM Reference card %c\n", 'A' + dimm->reference_card);
 
 	/* XMP profiles */
-	if (spd[176] == 0x0c && spd[177] = 0x4a) {
-		if (spd[178] & 1) {
+	if (spd[176] == 0x0c && spd[177] == 0x4a) {
+		if ((spd[178] & 1) && spd[180] && spd[181]) {
 			dimm->flags.xmp_profile_1 = 1;
 
 			mtb = (((u32) spd[180]) << 8) / spd[181];
@@ -397,9 +397,9 @@ int spd_decode_ddr3(dimm_attr * dimm, spd_raw_data spd)
 			/* Minimum Internal Read to Precharge Command Delay Time (tRTPmin) */
 			dimm->profiles[SPD_LATENCY_XMP_1].tRTP = spd[201] * mtb;
 			/* Minimum Four Activate Window Delay Time (tFAWmin) */
-			dimm->profiles[SPD_LATENCY_XMP_1].tFAW = (((spd[203] & 0x0f) << 8) + spd[202]) * mtb;
+			dimm->profiles[SPD_LATENCY_XMP_1].tFAW = (((spd[202] & 0x0f) << 8) + spd[203]) * mtb;
 		}
-		if (spd[178] & 2) {
+		if ((spd[178] & 2) && spd[182] && spd[183]) {
 			dimm->flags.xmp_profile_2 = 1;
 
 			mtb = (((u32) spd[182]) << 8) / spd[183];
@@ -480,18 +480,26 @@ void dram_print_spd_ddr3(const dimm_attr * dimm)
 	} while (val16);
 	printk(BIOS_INFO, "\n");
 
-	print_ns("  tCKmin            : ", dimm->tCK);
-	print_ns("  tAAmin            : ", dimm->tAA);
-	print_ns("  tWRmin            : ", dimm->tWR);
-	print_ns("  tRCDmin           : ", dimm->tRCD);
-	print_ns("  tRRDmin           : ", dimm->tRRD);
-	print_ns("  tRPmin            : ", dimm->tRP);
-	print_ns("  tRASmin           : ", dimm->tRAS);
-	print_ns("  tRCmin            : ", dimm->tRC);
-	print_ns("  tRFCmin           : ", dimm->tRFC);
-	print_ns("  tWTRmin           : ", dimm->tWTR);
-	print_ns("  tRTPmin           : ", dimm->tRTP);
-	print_ns("  tFAWmin           : ", dimm->tFAW);
+	for (i = SPD_LATENCY_SPD; i < SPD_LATENCY_LAST; i++) {
+		if(i == SPD_LATENCY_XMP_1 && !dimm->flags.xmp_profile_1)
+			continue;
+		if(i == SPD_LATENCY_XMP_2 && !dimm->flags.xmp_profile_2)
+			continue;
+		printk(BIOS_INFO, "  Profile '%s':\n", ddr3_get_profilename(i));
+		printk(BIOS_INFO, "  tCKmin = %d\n", dimm->profiles[i].tCK);
+		print_ns("  tCKmin            : ", dimm->profiles[i].tCK);
+		print_ns("  tAAmin            : ", dimm->profiles[i].tAA);
+		print_ns("  tWRmin            : ", dimm->profiles[i].tWR);
+		print_ns("  tRCDmin           : ", dimm->profiles[i].tRCD);
+		print_ns("  tRRDmin           : ", dimm->profiles[i].tRRD);
+		print_ns("  tRPmin            : ", dimm->profiles[i].tRP);
+		print_ns("  tRASmin           : ", dimm->profiles[i].tRAS);
+		print_ns("  tRCmin            : ", dimm->profiles[i].tRC);
+		print_ns("  tRFCmin           : ", dimm->profiles[i].tRFC);
+		print_ns("  tWTRmin           : ", dimm->profiles[i].tWTR);
+		print_ns("  tRTPmin           : ", dimm->profiles[i].tRTP);
+		print_ns("  tFAWmin           : ", dimm->profiles[i].tFAW);
+	}
 }
 
 /*==============================================================================
@@ -720,8 +728,8 @@ mrs_cmd_t ddr3_mrs_mirror_pins(mrs_cmd_t cmd)
 /**
  * \brief Return latencies profile name
  */
-char *ddr3_get_profilename(enum spd_lantency latency) {
-	switch(latency) {
+const char *ddr3_get_profilename(enum spd_profiles profile) {
+	switch(profile) {
 	case SPD_LATENCY_SPD:
 		return "SPD";
 	case SPD_LATENCY_XMP_1:
