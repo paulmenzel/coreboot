@@ -16,6 +16,7 @@
 
 #include <console/console.h>
 #include <console/uart.h>
+#include <console/serialice.h>
 #include <console/streams.h>
 #include <device/pci.h>
 #include <option.h>
@@ -42,6 +43,8 @@ void console_init(void)
 #endif
 
 	console_hw_init();
+
+	serialice_main();
 
 	printk(BIOS_INFO, "\n\ncoreboot-%s%s %s " ENV_STRING " starting...\n",
 	       coreboot_version, coreboot_extra_version, coreboot_build);

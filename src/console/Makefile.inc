@@ -2,6 +2,7 @@ ramstage-y += vtxprintf.c printk.c vsprintf.c
 ramstage-y += init.c console.c
 ramstage-y += post.c
 ramstage-y += die.c
+ramstage-$(CONFIG_DEBUG_SERIALICE_RAMSTAGE) += serialice.c
 
 smm-$(CONFIG_DEBUG_SMI) += init.c console.c vtxprintf.c printk.c
 smm-$(CONFIG_SMM_TSEG) += die.c
@@ -17,6 +18,7 @@ romstage-y += vtxprintf.c printk.c
 romstage-y += init.c console.c
 romstage-y += post.c
 romstage-y += die.c
+romstage-$(CONFIG_DEBUG_SERIALICE_ROMSTAGE) += serialice.c
 
 postcar-y += vtxprintf.c printk.c
 postcar-y += init.c console.c

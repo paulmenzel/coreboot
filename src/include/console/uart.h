@@ -59,10 +59,12 @@ void oxford_remap(unsigned int new_base);
 static inline void __uart_init(void)		{ uart_init(CONFIG_UART_FOR_CONSOLE); }
 static inline void __uart_tx_byte(u8 data)	{ uart_tx_byte(CONFIG_UART_FOR_CONSOLE, data); }
 static inline void __uart_tx_flush(void)	{ uart_tx_flush(CONFIG_UART_FOR_CONSOLE); }
+static inline u8 __uart_rx_byte(void)	{ return uart_rx_byte(CONFIG_UART_FOR_CONSOLE); }
 #else
 static inline void __uart_init(void)		{}
 static inline void __uart_tx_byte(u8 data)	{}
 static inline void __uart_tx_flush(void)	{}
+static inline u8 __uart_rx_byte(void)	{ return 0; }
 #endif
 
 #if CONFIG_GDB_STUB && (ENV_ROMSTAGE || ENV_RAMSTAGE)

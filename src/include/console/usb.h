@@ -37,10 +37,12 @@ int usb_can_rx_byte(int idx);
 static inline void __usbdebug_init(void)	{ usbdebug_init(); }
 static inline void __usb_tx_byte(u8 data)	{ usb_tx_byte(USB_PIPE_FOR_CONSOLE, data); }
 static inline void __usb_tx_flush(void)	{ usb_tx_flush(USB_PIPE_FOR_CONSOLE); }
+static inline u8 __usb_rx_byte(void)	{ return usb_rx_byte(USB_PIPE_FOR_CONSOLE); }
 #else
 static inline void __usbdebug_init(void)	{}
 static inline void __usb_tx_byte(u8 data)	{}
 static inline void __usb_tx_flush(void)	{}
+static inline u8 __usb_rx_byte(void)	{ return 0; }
 #endif
 
 /*  */

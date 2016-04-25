@@ -1078,6 +1078,38 @@ config DEBUG_COVERAGE
 	  If enabled, the code coverage hooks in coreboot will output some
 	  information about the coverage data that is dumped.
 
+config DEBUG_SERIALICE
+	bool "Enable SerialICE instead normal boot"
+	default n
+	depends on ARCH_X86
+	depends on CONSOLE_SERIAL || CONSOLE_USB
+	help
+	  If enabled, SerialICE will be run instead of normal boot.
+	  You need to connect a serial cable or EHCI debug dongle to
+	  communicate with SerialICE shell.
+
+if DEBUG_SERIALICE
+
+choice
+	prompt "SerialICE bootstage"
+	default DEBUG_SERIALICE_ROMSTAGE
+	help
+	  Choose the stage SerialICE to start. You can choose between
+	  ROMSTAGE and RAMSTAGE.
+
+config DEBUG_SERIALICE_ROMSTAGE
+	bool "Start SerialICE instead of Romstage"
+	depends on CONSOLE_SERIAL || USBDEBUG_IN_ROMSTAGE
+	help
+	  Start SerialICE in romstage, right after minimal system initialization.
+
+config DEBUG_SERIALICE_RAMSTAGE
+	bool "Start SerialICE instead of Ramstage"
+	help
+	  Start SerialICE in ramstage.
+endchoice
+
+endif
 endmenu
 
 # These probably belong somewhere else, but they are needed somewhere.
