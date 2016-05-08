@@ -27,6 +27,7 @@ romstage-y += raminit.c
 romstage-y += early_init.c
 romstage-y += report_platform.c
 romstage-y += ../../../arch/x86/walkcbfs.S
+romstage-y += ../../../device/dram/ddr3.c
 
 smm-$(CONFIG_HAVE_SMI_HANDLER) += finalize.c
 
