@@ -196,6 +196,7 @@ int early_spi_read(u32 offset, u32 size, u8 *buffer);
 int early_pch_init(const void *gpio_map,
                    const struct rcba_config_instruction *rcba_config);
 void pch_enable_lpc(void);
+void early_pch_systemagent (void* pei_data);
 #endif /* !__PRE_RAM__ && !__SMM__ */
 #endif /* __ASSEMBLER__ */
 
@@ -359,6 +360,8 @@ void pch_enable_lpc(void);
 #define EHCI_PORTSC(port)	(0x64 + (port * 4))
 #define  EHCI_PORTSC_ENABLED	(1 << 2)
 #define  EHCI_PORTSC_SUSPEND	(1 << 7)
+#define EHCI_OCMAP		0x74
+#define EHCI_PDO		0x64
 
 /* XHCI PCI Registers */
 #define XHCI_PWR_CTL_STS	0x74
@@ -372,6 +375,13 @@ void pch_enable_lpc(void);
 #define  XHCI_USB3FUS_SS_MASK	3
 #define  XHCI_USB3FUS_SS_SHIFT	3
 #define XHCI_USB3PDO		0xe8
+#define XHCI_XHCC2		0x44
+#define XHCI_U2OCM1		0xc0
+#define XHCI_U2OCM2		0xc4
+#define XHCI_U3OCM1		0xc8
+#define XHCI_U3OCM2		0xcc
+#define XHCI_USB2PDO		0xe4
+
 
 /* XHCI Memory Registers */
 #define XHCI_USB3_PORTSC(port)	((pch_is_lp() ? 0x510 : 0x570) + (port * 0x10))
