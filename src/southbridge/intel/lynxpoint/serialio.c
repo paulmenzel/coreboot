@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include "pch.h"
 #include "nvs.h"
+#include "iobp.h"
 
 /* Enable clock in PCI mode */
 static void serialio_enable_clock(struct resource *bar0)

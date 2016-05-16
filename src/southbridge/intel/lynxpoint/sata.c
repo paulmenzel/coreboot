@@ -21,6 +21,7 @@
 #include <device/pci_ids.h>
 #include <delay.h>
 #include "pch.h"
+#include "iobp.h"
 
 typedef struct southbridge_intel_lynxpoint_config config_t;
 

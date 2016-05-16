@@ -22,6 +22,7 @@
 #include <device/pci_ehci.h>
 #include <arch/io.h>
 #include "pch.h"
+#include "iobp.h"
 
 #ifdef __SMM__
 

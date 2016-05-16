@@ -32,6 +32,7 @@
 #include <string.h>
 #include "nvs.h"
 #include "pch.h"
+#include "iobp.h"
 #include <arch/acpigen.h>
 #include <cbmem.h>
 #include <drivers/intel/gma/i915.h>

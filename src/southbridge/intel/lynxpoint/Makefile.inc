@@ -26,6 +26,7 @@ ramstage-y += usb_xhci.c
 ramstage-y += me_9.x.c
 ramstage-y += smbus.c
 ramstage-y += hda_verb.c
+ramstage-y += iobp.c
 ramstage-$(CONFIG_INTEL_LYNXPOINT_LP) += serialio.c
 
 ramstage-srcs += src/mainboard/$(MAINBOARDDIR)/hda_verb.c
@@ -45,7 +46,7 @@ smm-$(CONFIG_HAVE_SMI_HANDLER) += smihandler.c me_9.x.c finalize.c pch.c
 smm-$(CONFIG_HAVE_SMI_HANDLER) += pmutil.c usb_ehci.c usb_xhci.c
 
 romstage-y += early_usb.c early_smbus.c early_me.c me_status.c early_pch.c
-romstage-y += reset.c early_spi.c rcba.c
+romstage-y += reset.c early_spi.c rcba.c iobp.c
 
 ifeq ($(CONFIG_INTEL_LYNXPOINT_LP),y)
 romstage-y += lp_gpio.c
