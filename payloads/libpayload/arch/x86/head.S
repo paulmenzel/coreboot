@@ -81,6 +81,51 @@ _init:
 	/* Save old stack pointer. */
 	pushl %esi
 
+	/* Enable special x86 functions */
+	pushl %eax
+	pushl %ebx
+	pushl %ecx
+	pushl %edx
+
+	movl $0, %eax
+	cpuid
+	/* CPUID eax=1 available ? */
+	test $0, %eax
+	je cpuid_done
+
+	movl $1, %eax
+	cpuid
+
+cpuid_fpu:
+	movl %edx, %eax
+	/* x87 FPU present ? */
+	andl $1, %eax
+	test $0, %eax
+	je cpuid_see
+
+	fninit
+	movl %cr0, %eax
+	andl $0xFFFFFFFB, %eax	/* clear EM */
+	orl $0x00000022, %eax	/* set MP, NE */
+	movl %eax, %cr0
+
+cpuid_see:
+	movl %edx, %eax
+	/* SSE available ? */
+	andl $0x02000000, %eax
+	test $0, %eax
+	je cpuid_done
+
+	movl %cr4, %eax
+	orl $0x00000600, %eax	/* set OSFXSR, OSXMMEXCPT */
+	movl %eax, %cr4
+
+cpuid_done:
+	popl %edx
+	popl %ecx
+	popl %ebx
+	popl %eax
+
 	/* Let's rock. */
 	call start_main
 
