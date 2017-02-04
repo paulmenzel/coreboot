@@ -30,6 +30,7 @@
 #include <keycodes.h>
 #include <libpayload-config.h>
 #include <libpayload.h>
+#include "i8042/kbc.h"
 
 #define I8042_CMD_DIS_KB     0xad
 #define POWER_BUTTON         0x90
@@ -40,6 +41,7 @@ struct layout_maps {
 };
 
 static struct layout_maps *map;
+static int modifier = 0;
 
 static struct layout_maps keyboard_layouts[] = {
 #if IS_ENABLED(CONFIG_LP_PC_KEYBOARD_LAYOUT_US)
@@ -162,44 +164,25 @@ static struct layout_maps keyboard_layouts[] = {
 #define MOD_CAPSLOCK (1 << 2)
 #define MOD_ALT      (1 << 3)
 
-static void keyboard_cmd(unsigned char cmd, unsigned char val)
+static unsigned char keyboard_cmd(unsigned char cmd)
 {
-	while (inb(0x64) & 2);
-	outb(cmd, 0x60);
-	mdelay(20);
+	kbc_write_input(cmd);
 
-	while (inb(0x64) & 2);
-	outb(val, 0x60);
-	mdelay(20);
+	return kbc_wait_read_kb() == 0xfa;
 }
 
 int keyboard_havechar(void)
 {
-	unsigned char c = inb(0x64);
-	return (c == 0xFF) ? 0 : c & 1;
+	return kbc_data_ready_kb();
 }
 
 unsigned char keyboard_get_scancode(void)
 {
-	unsigned char ch = 0;
-
-	if (keyboard_havechar())
-		ch = inb(0x60);
-
-	return ch;
+	return kbc_data_get_kb();
 }
 
-int keyboard_getchar(void)
+static void update_modifiers(unsigned char ch)
 {
-	static int modifier = 0;
-	unsigned char ch;
-	int shift;
-	int ret = 0;
-
-	while (!keyboard_havechar()) ;
-
-	ch = keyboard_get_scancode();
-
 	switch (ch) {
 	case 0x36:
 	case 0x2a:
@@ -224,13 +207,35 @@ int keyboard_getchar(void)
 	case 0x3a:
 		if (modifier & MOD_CAPSLOCK) {
 			modifier &= ~MOD_CAPSLOCK;
-			keyboard_cmd(0xed, (0 << 2));
+			if (keyboard_cmd(0xed))
+				keyboard_cmd(0 << 2);
 		} else {
 			modifier |= MOD_CAPSLOCK;
-			keyboard_cmd(0xed, (1 << 2));
+			if (keyboard_cmd(0xed))
+				keyboard_cmd(1 << 2);
 		}
 		break;
 	}
+}
+
+void keyboard_getmodifiers(unsigned char *shift, unsigned char *alt, unsigned char *ctrl)
+{
+	if (shift) *shift = !!(modifier & MOD_SHIFT);
+	if (alt) *alt = !!(modifier & MOD_SHIFT);
+	if (ctrl) *ctrl = !!(modifier & MOD_CTRL);
+}
+
+int keyboard_getchar(void)
+{
+	unsigned char ch;
+	int shift;
+	int ret = 0;
+
+	while (!keyboard_havechar()) ;
+
+	ch = keyboard_get_scancode();
+
+	update_modifiers(ch);
 
 	if (!(ch & 0x80) && ch < 0x57) {
 		shift =
@@ -260,16 +265,6 @@ int keyboard_getchar(void)
 		ret = POWER_BUTTON;
 
 	return ret;
-}
-
-static int keyboard_wait_write(void)
-{
-	int retries = 10000;
-
-	while(retries-- && (inb(0x64) & 0x02))
-		udelay(50);
-
-	return (retries <= 0) ? -1 : 0;
 }
 
 /**
@@ -303,15 +298,23 @@ static struct console_input_driver cons = {
 
 void keyboard_init(void)
 {
+	unsigned int ret;
 	map = &keyboard_layouts[0];
 
-	/* If 0x64 returns 0xff, then we have no keyboard
-	 * controller */
-	if (inb(0x64) == 0xFF)
+	/* Initialized keyboard controller. */
+	if (!kbc_probe() || !kbc_has_ps2())
 		return;
 
 	/* Empty keyboard buffer */
 	while (keyboard_havechar()) keyboard_getchar();
+
+	/* Enable first PS/2 port */
+	kbc_cmd(0xae, 0);
+
+	/* Enable scanning */
+	ret = keyboard_cmd(0xf4);
+	if (!ret)
+		return;
 
 	console_add_input_driver(&cons);
 }
@@ -328,8 +331,7 @@ void keyboard_disconnect(void)
 		keyboard_getchar();
 
 	/* Send keyboard disconnect command */
-	outb(I8042_CMD_DIS_KB, 0x64);
-	keyboard_wait_write();
+	kbc_cmd(I8042_CMD_DIS_KB, 0);
 
 	/* Hand off with empty buffer */
 	while (keyboard_havechar())
