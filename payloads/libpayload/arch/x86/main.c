@@ -62,6 +62,15 @@ int start_main(void)
 	 * user gets control goes here.
 	 */
 
+	/* And enable cache and Write through */
+	__asm__ __volatile__ (
+		"movl %%cr0, %%eax\n\t"
+		"andl $0x9FFFFFFF, %%eax\n\t" /* clear CD, NW */
+		"movl %%eax, %%cr0\n\t"
+		: :
+		: "ax"
+	);
+
 	/*
 	 * Go to the entry point.
 	 * In the future we may care about the return value.
