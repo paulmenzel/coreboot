@@ -21,9 +21,14 @@ cbfs-files-$(CONFIG_NVRAMCUI_SECONDARY_PAYLOAD) += img/nvramcui
 img/nvramcui-file := payloads/nvramcui/nvramcui.elf
 img/nvramcui-type := payload
 
+cbfs-files-$(CONFIG_CBUI_SECONDARY_PAYLOAD) += img/cbui
+img/cbui-file := payloads/cbui/build/cbui.elf
+img/cbui-type := payload
+
 PAYLOADS_LIST=\
 payloads/coreinfo \
 payloads/nvramcui \
+payloads/cbui \
 payloads/libpayload \
 payloads/external/depthcharge \
 payloads/external/SeaBIOS \
@@ -38,6 +43,9 @@ payloads/coreinfo/build/coreinfo.elf coreinfo:
 payloads/nvramcui/nvramcui.elf nvramcui:
 	$(MAKE) -C payloads/nvramcui
 
+payloads/cbui/build/cbui.elf cbui:
+	$(MAKE) -C payloads/cbui
+
 clean-payloads:
 	$(foreach payload, $(PAYLOADS_LIST), $(MAKE) -C $(payload) clean; )
 
@@ -47,4 +55,4 @@ distclean-payloads:
 print-repo-info-payloads:
 	-$(foreach payload, $(PAYLOADS_LIST), $(MAKE) -C $(payload) print-repo-info 2>/dev/null; )
 
-.PHONY: clean-payloads distclean-payloads print-repo-info-payloads nvramcui coreinfo
+.PHONY: clean-payloads distclean-payloads print-repo-info-payloads nvramcui coreinfo cbui

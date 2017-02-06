@@ -114,6 +114,20 @@ config NVRAMCUI_SECONDARY_PAYLOAD
 	  nvramcui can be loaded as a secondary payload under SeaBIOS, GRUB,
 	  or any other payload that can load additional payloads.
 
+config CBUI_SECONDARY_PAYLOAD
+        bool "Load cbui as a secondary payload"
+        default n
+        depends on ARCH_X86
+        help
+          cbui can be loaded as a secondary payload under SeaBIOS, GRUB,
+          or any other payload that can load additional payloads.
+
+if CBUI_SECONDARY_PAYLOAD
+
+#source "payloads/cbui/Kconfig"
+
+endif
+
 config TINT_SECONDARY_PAYLOAD
 	bool "Load tint as a secondary payload"
 	default n
