@@ -304,6 +304,29 @@ int console_remove_output_driver(void *function);
 #define havechar havekey
 /** @} */
 
+/**
+ * @defgroup cursor Cursor functions
+ * @{
+ */
+typedef enum {
+	CURSOR_INPUT_TYPE_UNKNOWN = 0,
+	CURSOR_INPUT_TYPE_USB,
+	CURSOR_INPUT_TYPE_PS2,
+} cursor_input_type;
+
+void cursor_init(void);
+
+struct cursor_input_driver;
+struct cursor_input_driver {
+	struct cursor_input_driver *next;
+	/* X,Y,Z axis and buttons */
+	void (*get_state)(int *, int *, int *, u32 *);
+	cursor_input_type input_type;
+};
+
+void cursor_add_input_driver(struct cursor_input_driver *in);
+
+/** @} */
 
 /**
  * @defgroup exec Execution functions

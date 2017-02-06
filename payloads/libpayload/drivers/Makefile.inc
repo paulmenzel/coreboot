@@ -44,6 +44,8 @@ libc-y += i8042/fifo.c
 
 libc-$(CONFIG_LP_CBMEM_CONSOLE) += cbmem_console.c
 
+libc-$(CONFIG_LP_CURSOR) += cursor.c
+
 libc-$(CONFIG_LP_NVRAM) += nvram.c
 libc-$(CONFIG_LP_NVRAM) += options.c
 
