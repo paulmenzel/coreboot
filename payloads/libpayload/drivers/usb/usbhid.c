@@ -51,6 +51,16 @@ typedef union {
 	u8 buffer[8];
 } usb_hid_keyboard_event_t;
 
+typedef union {
+	struct {
+		u8 keys;
+		char x;
+		char y;
+		char wheel;
+	};
+	u8 buffer[4];
+} usb_hid_mouse_event_t;
+
 typedef struct {
 	void* queue;
 	hid_descriptor_t *descriptor;
@@ -87,6 +97,11 @@ usb_hid_destroy (usbdev_t *dev)
 static int keycount;
 #define KEYBOARD_BUFFER_SIZE 16
 static short keybuffer[KEYBOARD_BUFFER_SIZE];
+
+static int mouse_rel_x;
+static int mouse_rel_y;
+static int mouse_rel_z;
+static u32 mouse_buttons;
 
 const char *countries[36][2] = {
 	{ "not supported", "us" },
@@ -255,6 +270,7 @@ static void usb_hid_keyboard_queue(int ch) {
 }
 
 #define KEYBOARD_REPEAT_MS	30
+#define MOUSE_REPEAT_MS	10
 #define INITIAL_REPEAT_DELAY	10
 #define REPEAT_DELAY		 2
 
@@ -348,8 +364,39 @@ usb_hid_process_keyboard_event(usbhid_inst_t *const inst,
 	}
 }
 
+static void usbhid_mouse_state(int *x, int *y, int *z, u32 *buttons)
+{
+	if (x) {
+		*x = mouse_rel_x;
+		mouse_rel_x = 0;
+	}
+	if (y) {
+		*y = mouse_rel_y;
+		mouse_rel_y = 0;
+	}
+	if (z) {
+		*z = mouse_rel_z;
+		mouse_rel_z = 0;
+	}
+	if (buttons)
+		*buttons = mouse_buttons;
+}
+
 static void
-usb_hid_poll (usbdev_t *dev)
+usb_hid_process_mouse_event(usbhid_inst_t *const inst,
+		const usb_hid_mouse_event_t *const current)
+{
+	mouse_rel_x += current->x;
+	mouse_rel_y += current->y;
+	/* XXX: Parse HID report for optional third axis */
+	mouse_rel_z = 0;
+
+	/* XXX: Parse HID report for optional buttons */
+	mouse_buttons = current->keys & 0x7;
+}
+
+static void
+usb_hid_poll_keyboard(usbdev_t *dev)
 {
 	usb_hid_keyboard_event_t current;
 	const u8 *buf;
@@ -358,6 +405,18 @@ usb_hid_poll (usbdev_t *dev)
 		memcpy(&current.buffer, buf, 8);
 		usb_hid_process_keyboard_event(HID_INST(dev), &current);
 		HID_INST(dev)->previous = current;
+	}
+}
+
+static void
+usb_hid_poll_mouse(usbdev_t *dev)
+{
+	usb_hid_mouse_event_t current;
+	const u8 *buf;
+
+	while((buf = dev->controller->poll_intr_queue (HID_INST(dev)->queue))) {
+		memcpy(&current.buffer, buf, 4);
+		usb_hid_process_mouse_event(HID_INST(dev), &current);
 	}
 }
 
@@ -395,6 +454,11 @@ static struct console_input_driver cons = {
 	.input_type = CONSOLE_INPUT_TYPE_USB,
 };
 
+static struct cursor_input_driver curs = {
+	.get_state = usbhid_mouse_state,
+	.input_type = CURSOR_INPUT_TYPE_USB,
+};
+
 
 static int usb_hid_set_layout (const char *country)
 {
@@ -422,11 +486,15 @@ static int usb_hid_set_layout (const char *country)
 void
 usb_hid_init (usbdev_t *dev)
 {
-
+	hid_descriptor_t *desc;
+	endpoint_descriptor_t ep_desc;
 	static int installed = 0;
+	int i, interval;
+
 	if (!installed) {
 		installed = 1;
-		console_add_input_driver (&cons);
+		console_add_input_driver(&cons);
+		cursor_add_input_driver(&curs);
 	}
 
 	configuration_descriptor_t *cd = (configuration_descriptor_t*)dev->configuration;
@@ -439,7 +507,7 @@ usb_hid_init (usbdev_t *dev)
 			boot_protos[interface->bInterfaceProtocol]);
 		switch (interface->bInterfaceProtocol) {
 		case hid_boot_proto_keyboard:
-			dev->data = malloc (sizeof (usbhid_inst_t));
+			dev->data = malloc(sizeof(usbhid_inst_t));
 			if (!dev->data)
 				fatal("Not enough memory for USB HID device.\n");
 			memset(&HID_INST(dev)->previous, 0x00,
@@ -449,7 +517,7 @@ usb_hid_init (usbdev_t *dev)
 			usb_hid_set_idle(dev, interface, KEYBOARD_REPEAT_MS);
 			usb_debug ("  activating...\n");
 
-			hid_descriptor_t *desc = malloc(sizeof(hid_descriptor_t));
+			desc = malloc(sizeof(hid_descriptor_t));
 			if (!desc || get_descriptor(dev, gen_bmRequestType(
 				device_to_host, standard_type, iface_recp),
 				0x21, 0, desc, sizeof(*desc)) != sizeof(*desc)) {
@@ -468,10 +536,8 @@ usb_hid_init (usbdev_t *dev)
 			/* Set keyboard layout accordingly */
 			usb_hid_set_layout(countries[countrycode][1]);
 
-			// only add here, because we only support boot-keyboard HID devices
 			dev->destroy = usb_hid_destroy;
-			dev->poll = usb_hid_poll;
-			int i;
+			dev->poll = usb_hid_poll_keyboard;
 			for (i = 1; i < dev->num_endp; i++) {
 				if (dev->endpoints[i].type != INTERRUPT)
 					continue;
@@ -491,7 +557,56 @@ usb_hid_init (usbdev_t *dev)
 			usb_debug ("  configuration done.\n");
 			break;
 		case hid_boot_proto_mouse:
-			usb_debug("NOTICE: USB mice are not supported.\n");
+			dev->data = malloc(sizeof(usbhid_inst_t));
+			if (!dev->data)
+				fatal("Not enough memory for USB HID device.\n");
+			usb_debug("  configuring...\n");
+			usb_hid_set_protocol(dev, interface, hid_proto_boot);
+			usb_hid_set_idle(dev, interface, MOUSE_REPEAT_MS);
+			usb_debug("  activating...\n");
+
+			desc = malloc(sizeof(hid_descriptor_t));
+			if (!desc || get_descriptor(dev, gen_bmRequestType(
+				device_to_host, standard_type, iface_recp),
+				0x21, 0, desc, sizeof(*desc)) != sizeof(*desc)) {
+				usb_debug("get_descriptor(HID) failed\n");
+				usb_detach_device(dev->controller, dev->address);
+				return;
+			}
+			HID_INST (dev)->descriptor = desc;
+			if (desc->bCountryCode) {
+				usb_debug("WARN: invalid country code %02x\n",
+						desc->bCountryCode);
+			}
+
+			dev->destroy = usb_hid_destroy;
+			dev->poll = usb_hid_poll_mouse;
+			for (i = 1; i < dev->num_endp; i++) {
+				if (dev->endpoints[i].type != INTERRUPT)
+					continue;
+				if (dev->endpoints[i].direction != IN)
+					continue;
+				break;
+			}
+			if (i >= dev->num_endp) {
+				usb_debug("Could not find HID endpoint\n");
+				usb_detach_device (dev->controller, dev->address);
+				return;
+			}
+			usb_debug("  found endpoint %x for interrupt-in\n", i);
+
+			memset(&ep_desc, 0, sizeof(ep_desc));
+			if (get_descriptor(dev, gen_bmRequestType(
+				device_to_host, standard_type, endp_recp),
+				0x21, 0, &ep_desc, sizeof(ep_desc)) != sizeof(ep_desc)) {
+				usb_debug("get_descriptor(endpoint) failed\n");
+			}
+			interval = MAX(ep_desc.bInterval, MOUSE_REPEAT_MS);
+
+			/* 20 buffers of 4 bytes (+4 optional bytes), for every <interval> msecs */
+			HID_INST(dev)->queue = dev->controller->create_intr_queue (&dev->endpoints[i], 8, 20, interval);
+			keycount = 0;
+			usb_debug("  configuration done.\n");
 			break;
 		}
 	}
