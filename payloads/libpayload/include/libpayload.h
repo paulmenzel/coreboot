@@ -159,8 +159,26 @@ void keyboard_init(void);
 void keyboard_disconnect(void);
 int keyboard_havechar(void);
 unsigned char keyboard_get_scancode(void);
+void keyboard_getmodifiers(unsigned char *shift, unsigned char *alt, unsigned char *ctrl);
 int keyboard_getchar(void);
 int keyboard_set_layout(char *country);
+/** @} */
+
+/**
+ * @defgroup mouse Mouse functions
+ * @ingroup input
+ * @{
+ */
+void mouse_init(void);
+void mouse_disconnect(void);
+
+void mouse_poll(void);
+void mouse_get_rel(int *x, int *y, int *z);
+void mouse_get_buttons(u32 *buttons);
+void mouse_set_speed(u32 val);
+u32 mouse_get_speed(void);
+void mouse_set_acceleration(u8 val);
+u8 mouse_get_acceleration(void);
 /** @} */
 
 /**

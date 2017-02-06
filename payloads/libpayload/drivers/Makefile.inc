@@ -39,6 +39,7 @@ libc-$(CONFIG_LP_IPQ806X_SERIAL_CONSOLE) += serial/ipq806x.c serial/serial.c
 libc-$(CONFIG_LP_IPQ40XX_SERIAL_CONSOLE) += serial/ipq40xx.c serial/serial.c
 libc-$(CONFIG_LP_BG4CD_SERIAL_CONSOLE) += serial/bg4cd.c serial/serial.c
 libc-$(CONFIG_LP_PC_KEYBOARD) += keyboard.c
+libc-$(CONFIG_LP_PC_MOUSE) += mouse.c
 libc-y += i8042/kbc.c
 libc-y += i8042/fifo.c
 
