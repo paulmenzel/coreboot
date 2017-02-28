@@ -20,7 +20,7 @@ srck := $(src)/../../util/kconfig
 cbui_obj := $(src)/build
 objk := $(src)/build/util/kconfig
 
-nuklear_git_repo=git@github.com:siro20/nuklear.git
+nuklear_git_repo=https://github.com/siro20/nuklear.git
 nuklear_dir=nuklear
 NUKLEAR_HEADERS=$(nuklear_dir)/demo/x11_rawfb/nuklear_rawfb.h $(nuklear_dir)/nuklear.h
 
